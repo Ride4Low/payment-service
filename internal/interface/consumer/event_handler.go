@@ -3,7 +3,6 @@ package consumer
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/bytedance/sonic"
 	"github.com/rabbitmq/amqp091-go"
@@ -42,8 +41,6 @@ func (h *EventHandler) Handle(ctx context.Context, msg amqp091.Delivery) error {
 }
 
 func (h *EventHandler) handleCreateSession(ctx context.Context, message events.AmqpMessage) error {
-	log.Printf("Received create session request: %+v", message)
-
 	var payload events.PaymentTripResponseData
 	if err := sonic.Unmarshal(message.Data, &payload); err != nil {
 		return fmt.Errorf("failed to unmarshal payload: %v", err)

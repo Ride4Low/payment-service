@@ -15,24 +15,30 @@ type PaymentConfig struct {
 	CancelURL           string `json:"cancelURL"`
 }
 
+// SessionCreator defines a function that creates a checkout session
+type SessionCreator func(params *stripe.CheckoutSessionParams) (*stripe.CheckoutSession, error)
+
 // Provider implements application.PaymentProvider for Stripe
 type Provider struct {
-	config PaymentConfig
+	config        PaymentConfig
+	createSession SessionCreator
 }
 
 // NewProvider creates a new Stripe payment provider
 func NewProvider(config PaymentConfig) *Provider {
 	stripe.Key = config.StripeSecretKey
 	return &Provider{
-		config: config,
+		config:        config,
+		createSession: session.New,
 	}
 }
 
 // NewProviderWithCreator creates a new Stripe payment provider with a custom session creator (for testing)
-func NewProviderWithCreator(config PaymentConfig) *Provider {
+func NewProviderWithCreator(config PaymentConfig, creator SessionCreator) *Provider {
 	stripe.Key = config.StripeSecretKey
 	return &Provider{
-		config: config,
+		config:        config,
+		createSession: creator,
 	}
 }
 
@@ -57,7 +63,7 @@ func (p *Provider) CreatePaymentSession(ctx context.Context, amount int64, curre
 		},
 	}
 
-	result, err := session.New(params)
+	result, err := p.createSession(params)
 	if err != nil {
 		return "", err
 	}
