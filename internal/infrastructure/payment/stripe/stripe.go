@@ -23,7 +23,17 @@ type Provider struct {
 // NewProvider creates a new Stripe payment provider
 func NewProvider(config PaymentConfig) *Provider {
 	stripe.Key = config.StripeSecretKey
-	return &Provider{config: config}
+	return &Provider{
+		config: config,
+	}
+}
+
+// NewProviderWithCreator creates a new Stripe payment provider with a custom session creator (for testing)
+func NewProviderWithCreator(config PaymentConfig) *Provider {
+	stripe.Key = config.StripeSecretKey
+	return &Provider{
+		config: config,
+	}
 }
 
 // CreatePaymentSession creates a Stripe checkout session

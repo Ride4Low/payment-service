@@ -42,8 +42,6 @@ func (h *EventHandler) Handle(ctx context.Context, msg amqp091.Delivery) error {
 }
 
 func (h *EventHandler) handleCreateSession(ctx context.Context, message events.AmqpMessage) error {
-	// TODO: Extract tripID, userID, driverID, amount, currency from message.Data
-	// For now, placeholder implementation
 	log.Printf("Received create session request: %+v", message)
 
 	var payload events.PaymentTripResponseData
@@ -51,7 +49,8 @@ func (h *EventHandler) handleCreateSession(ctx context.Context, message events.A
 		return fmt.Errorf("failed to unmarshal payload: %v", err)
 	}
 
-	paymentSession, err := h.paymentSvc.CreatePaymentSession(
+	// Call application layer - publishing is handled there
+	err := h.paymentSvc.CreatePaymentSession(
 		ctx,
 		payload.TripID,
 		payload.UserID,
@@ -62,8 +61,5 @@ func (h *EventHandler) handleCreateSession(ctx context.Context, message events.A
 	if err != nil {
 		return fmt.Errorf("failed to create payment session: %w", err)
 	}
-
-	log.Printf("Created payment session: %+v", paymentSession)
-
 	return nil
 }

@@ -2,23 +2,23 @@ package application
 
 import (
 	"context"
-	"time"
 
-	"github.com/ride4Low/payment-service/internal/domain"
+	"github.com/ride4Low/contracts/events"
 )
 
 // paymentService implements PaymentService interface
 type paymentService struct {
-	provider PaymentProvider
+	provider  PaymentProvider
+	publisher EventPublisher
 }
 
-// NewPaymentService creates a new payment service with the given provider
-func NewPaymentService(provider PaymentProvider) PaymentService {
-	return &paymentService{provider: provider}
+// NewPaymentService creates a new payment service with the given provider and publisher
+func NewPaymentService(provider PaymentProvider, publisher EventPublisher) PaymentService {
+	return &paymentService{provider: provider, publisher: publisher}
 }
 
 // CreatePaymentSession creates a payment session using the payment provider
-func (s *paymentService) CreatePaymentSession(ctx context.Context, tripID, userID, driverID string, amount int64, currency string) (*domain.PaymentIntent, error) {
+func (s *paymentService) CreatePaymentSession(ctx context.Context, tripID, userID, driverID string, amount int64, currency string) error {
 	metadata := map[string]string{
 		"trip_id":   tripID,
 		"user_id":   userID,
@@ -27,16 +27,23 @@ func (s *paymentService) CreatePaymentSession(ctx context.Context, tripID, userI
 
 	sessionID, err := s.provider.CreatePaymentSession(ctx, amount, currency, metadata)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return &domain.PaymentIntent{
-		TripID:          tripID,
-		UserID:          userID,
-		DriverID:        driverID,
-		Amount:          amount,
-		Currency:        currency,
-		StripeSessionID: sessionID,
-		CreatedAt:       time.Now(),
-	}, nil
+	msg := &PaymentSessionCreatedEvent{
+		UserID: userID,
+		PaymentEventSessionCreatedData: events.PaymentEventSessionCreatedData{
+			TripID:    tripID,
+			SessionID: sessionID,
+			Amount:    float64(amount) / 100.0,
+			Currency:  currency,
+		},
+	}
+
+	// Publish the event from application layer (business logic decides when to publish)
+	if err := s.publisher.PublishPaymentSessionCreated(ctx, msg); err != nil {
+		return err
+	}
+
+	return nil
 }

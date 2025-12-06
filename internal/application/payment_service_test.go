@@ -19,9 +19,23 @@ func (m *mockPaymentProvider) CreatePaymentSession(ctx context.Context, amount i
 	return m.sessionID, nil
 }
 
+// mockEventPublisher is a mock implementation of EventPublisher for testing
+type mockEventPublisher struct {
+	called bool
+	event  PaymentSessionCreatedEvent
+	err    error
+}
+
+func (m *mockEventPublisher) PublishPaymentSessionCreated(ctx context.Context, event *PaymentSessionCreatedEvent) error {
+	m.called = true
+	m.event = *event
+	return m.err
+}
+
 func TestNewPaymentService(t *testing.T) {
 	provider := &mockPaymentProvider{}
-	svc := NewPaymentService(provider)
+	publisher := &mockEventPublisher{}
+	svc := NewPaymentService(provider, publisher)
 
 	if svc == nil {
 		t.Fatal("expected non-nil PaymentService")
@@ -30,65 +44,87 @@ func TestNewPaymentService(t *testing.T) {
 
 func TestPaymentService_CreatePaymentSession_Success(t *testing.T) {
 	provider := &mockPaymentProvider{sessionID: "cs_test_session_123"}
-	svc := NewPaymentService(provider)
+	publisher := &mockEventPublisher{}
+	svc := NewPaymentService(provider, publisher)
 
 	ctx := context.Background()
-	intent, err := svc.CreatePaymentSession(ctx, "trip-1", "user-1", "driver-1", 1000, "usd")
+	err := svc.CreatePaymentSession(ctx, "trip-1", "user-1", "driver-1", 1000, "usd")
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if intent == nil {
-		t.Fatal("expected non-nil PaymentIntent")
-	}
-
-	if intent.TripID != "trip-1" {
-		t.Errorf("expected TripID 'trip-1', got '%s'", intent.TripID)
-	}
-
-	if intent.UserID != "user-1" {
-		t.Errorf("expected UserID 'user-1', got '%s'", intent.UserID)
-	}
-
-	if intent.DriverID != "driver-1" {
-		t.Errorf("expected DriverID 'driver-1', got '%s'", intent.DriverID)
-	}
-
-	if intent.Amount != 1000 {
-		t.Errorf("expected Amount 1000, got %d", intent.Amount)
-	}
-
-	if intent.Currency != "usd" {
-		t.Errorf("expected Currency 'usd', got '%s'", intent.Currency)
-	}
-
-	if intent.StripeSessionID != "cs_test_session_123" {
-		t.Errorf("expected StripeSessionID 'cs_test_session_123', got '%s'", intent.StripeSessionID)
-	}
-
-	if intent.CreatedAt.IsZero() {
-		t.Error("expected non-zero CreatedAt")
+	// Verify publisher was called
+	if !publisher.called {
+		t.Error("expected publisher to be called")
 	}
 }
 
 func TestPaymentService_CreatePaymentSession_ProviderError(t *testing.T) {
 	providerErr := errors.New("stripe api error")
 	provider := &mockPaymentProvider{err: providerErr}
-	svc := NewPaymentService(provider)
+	publisher := &mockEventPublisher{}
+	svc := NewPaymentService(provider, publisher)
 
 	ctx := context.Background()
-	intent, err := svc.CreatePaymentSession(ctx, "trip-1", "user-1", "driver-1", 1000, "usd")
+	err := svc.CreatePaymentSession(ctx, "trip-1", "user-1", "driver-1", 1000, "usd")
 
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 
-	if intent != nil {
-		t.Error("expected nil PaymentIntent on error")
-	}
-
 	if !errors.Is(err, providerErr) {
 		t.Errorf("expected error to be '%v', got '%v'", providerErr, err)
+	}
+}
+
+func TestPaymentService_CreatePaymentSession_PublisherError(t *testing.T) {
+	publisherErr := errors.New("rabbitmq error")
+	provider := &mockPaymentProvider{sessionID: "cs_test_session_123"}
+	publisher := &mockEventPublisher{err: publisherErr}
+	svc := NewPaymentService(provider, publisher)
+
+	ctx := context.Background()
+	err := svc.CreatePaymentSession(ctx, "trip-1", "user-1", "driver-1", 1000, "usd")
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+}
+
+func TestPaymentService_CreatePaymentSession_EventData(t *testing.T) {
+	provider := &mockPaymentProvider{sessionID: "cs_test_session_456"}
+	publisher := &mockEventPublisher{}
+	svc := NewPaymentService(provider, publisher)
+
+	ctx := context.Background()
+	err := svc.CreatePaymentSession(ctx, "trip-123", "user-456", "driver-789", 2500, "eur")
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify event data is correct
+	if publisher.event.UserID != "user-456" {
+		t.Errorf("expected event UserID 'user-456', got '%s'", publisher.event.UserID)
+	}
+
+	if publisher.event.TripID != "trip-123" {
+		t.Errorf("expected event TripID 'trip-123', got '%s'", publisher.event.TripID)
+	}
+
+	if publisher.event.SessionID != "cs_test_session_456" {
+		t.Errorf("expected event SessionID 'cs_test_session_456', got '%s'", publisher.event.SessionID)
+	}
+
+	// 2500 cents = 25.00 dollars
+	expectedAmount := 25.0
+	if publisher.event.Amount != expectedAmount {
+		t.Errorf("expected event Amount %f, got %f", expectedAmount, publisher.event.Amount)
+	}
+
+	if publisher.event.Currency != "eur" {
+		t.Errorf("expected event Currency 'eur', got '%s'", publisher.event.Currency)
 	}
 }

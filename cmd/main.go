@@ -11,6 +11,7 @@ import (
 	"github.com/ride4Low/contracts/events"
 	"github.com/ride4Low/contracts/pkg/rabbitmq"
 	"github.com/ride4Low/payment-service/internal/application"
+	"github.com/ride4Low/payment-service/internal/infrastructure/messaging"
 	"github.com/ride4Low/payment-service/internal/infrastructure/payment/stripe"
 	"github.com/ride4Low/payment-service/internal/interface/consumer"
 )
@@ -48,8 +49,12 @@ func main() {
 		CancelURL:       stripeCancelURL,
 	})
 
-	// Application layer: Create payment service with provider
-	paymentSvc := application.NewPaymentService(stripeProvider)
+	// Infrastructure layer: Create RabbitMQ event publisher (adapter)
+	rmqPublisher := rabbitmq.NewPublisher(rmq)
+	eventPublisher := messaging.NewRabbitMQPublisher(rmqPublisher)
+
+	// Application layer: Create payment service with provider and publisher
+	paymentSvc := application.NewPaymentService(stripeProvider, eventPublisher)
 
 	// Interface layer: Create event handler with payment service
 	eventHandler := consumer.NewEventHandler(paymentSvc)

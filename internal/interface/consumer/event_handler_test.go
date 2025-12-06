@@ -7,22 +7,20 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/ride4Low/contracts/events"
-	"github.com/ride4Low/payment-service/internal/domain"
 )
 
 // mockPaymentService is a mock implementation of application.PaymentService
 type mockPaymentService struct {
-	intent *domain.PaymentIntent
 	err    error
 	called bool
 }
 
-func (m *mockPaymentService) CreatePaymentSession(ctx context.Context, tripID, userID, driverID string, amount int64, currency string) (*domain.PaymentIntent, error) {
+func (m *mockPaymentService) CreatePaymentSession(ctx context.Context, tripID, userID, driverID string, amount int64, currency string) error {
 	m.called = true
 	if m.err != nil {
-		return nil, m.err
+		return m.err
 	}
-	return m.intent, nil
+	return nil
 }
 
 func TestNewEventHandler(t *testing.T) {
