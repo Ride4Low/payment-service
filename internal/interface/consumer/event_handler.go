@@ -46,12 +46,24 @@ func (h *EventHandler) handleCreateSession(ctx context.Context, message events.A
 	// For now, placeholder implementation
 	log.Printf("Received create session request: %+v", message)
 
-	// Example usage (uncomment when message parsing is implemented):
-	// intent, err := h.paymentSvc.CreatePaymentSession(ctx, tripID, userID, driverID, amount, currency)
-	// if err != nil {
-	//     return fmt.Errorf("failed to create payment session: %w", err)
-	// }
-	// log.Printf("Created payment intent: %+v", intent)
+	var payload events.PaymentTripResponseData
+	if err := sonic.Unmarshal(message.Data, &payload); err != nil {
+		return fmt.Errorf("failed to unmarshal payload: %v", err)
+	}
+
+	paymentSession, err := h.paymentSvc.CreatePaymentSession(
+		ctx,
+		payload.TripID,
+		payload.UserID,
+		payload.DriverID,
+		int64(payload.Amount),
+		payload.Currency,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create payment session: %w", err)
+	}
+
+	log.Printf("Created payment session: %+v", paymentSession)
 
 	return nil
 }

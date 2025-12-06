@@ -2,23 +2,55 @@ package stripe
 
 import (
 	"context"
-	"fmt"
+
+	"github.com/stripe/stripe-go/v81"
+	"github.com/stripe/stripe-go/v81/checkout/session"
 )
+
+type PaymentConfig struct {
+	StripeSecretKey     string `json:"stripeSecretKey"`
+	StripeWebhookSecret string `json:"stripeWebhookSecret"`
+	Currency            string `json:"currency"`
+	SuccessURL          string `json:"successURL"`
+	CancelURL           string `json:"cancelURL"`
+}
 
 // Provider implements application.PaymentProvider for Stripe
 type Provider struct {
-	apiKey string
+	config PaymentConfig
 }
 
 // NewProvider creates a new Stripe payment provider
-func NewProvider(apiKey string) *Provider {
-	return &Provider{apiKey: apiKey}
+func NewProvider(config PaymentConfig) *Provider {
+	stripe.Key = config.StripeSecretKey
+	return &Provider{config: config}
 }
 
 // CreatePaymentSession creates a Stripe checkout session
 func (p *Provider) CreatePaymentSession(ctx context.Context, amount int64, currency string, metadata map[string]string) (string, error) {
-	// TODO: Implement actual Stripe API call
-	// For now, return a placeholder session ID
-	fmt.Printf("Creating Stripe session: amount=%d, currency=%s, metadata=%v\n", amount, currency, metadata)
-	return "cs_placeholder_session_id", nil
+
+	params := &stripe.CheckoutSessionParams{
+		Mode:       stripe.String(string(stripe.CheckoutSessionModePayment)),
+		SuccessURL: stripe.String(p.config.SuccessURL),
+		CancelURL:  stripe.String(p.config.CancelURL),
+		LineItems: []*stripe.CheckoutSessionLineItemParams{
+			{
+				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
+					Currency: stripe.String(currency),
+					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
+						Name: stripe.String("Test Product"),
+					},
+					UnitAmount: stripe.Int64(amount),
+				},
+				Quantity: stripe.Int64(1),
+			},
+		},
+	}
+
+	result, err := session.New(params)
+	if err != nil {
+		return "", err
+	}
+
+	return result.ID, nil
 }

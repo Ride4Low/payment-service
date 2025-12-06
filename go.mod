@@ -6,6 +6,7 @@ require (
 	github.com/bytedance/sonic v1.14.2
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/ride4Low/contracts v0.0.0-20251205125043-884f40b0957b
+	github.com/stripe/stripe-go/v81 v81.4.0
 )
 
 require (

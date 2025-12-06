@@ -16,8 +16,10 @@ import (
 )
 
 var (
-	rabbitMQURI  = env.GetString("RABBITMQ_URI", "amqp://guest:guest@localhost:5672/")
-	stripeAPIKey = env.GetString("STRIPE_API_KEY", "")
+	rabbitMQURI      = env.GetString("RABBITMQ_URI", "amqp://guest:guest@localhost:5672/")
+	stripeSecretKey  = env.GetString("STRIPE_SECRET_KEY", "")
+	stripeSuccessURL = env.GetString("STRIPE_SUCCESS_URL", "")
+	stripeCancelURL  = env.GetString("STRIPE_CANCEL_URL", "")
 )
 
 func main() {
@@ -40,7 +42,11 @@ func main() {
 	defer rmq.Close()
 
 	// Infrastructure layer: Create Stripe payment provider (adapter)
-	stripeProvider := stripe.NewProvider(stripeAPIKey)
+	stripeProvider := stripe.NewProvider(stripe.PaymentConfig{
+		StripeSecretKey: stripeSecretKey,
+		SuccessURL:      stripeSuccessURL,
+		CancelURL:       stripeCancelURL,
+	})
 
 	// Application layer: Create payment service with provider
 	paymentSvc := application.NewPaymentService(stripeProvider)
