@@ -49,6 +49,7 @@ func (p *Provider) CreatePaymentSession(ctx context.Context, amount int64, curre
 		Mode:       stripe.String(string(stripe.CheckoutSessionModePayment)),
 		SuccessURL: stripe.String(p.config.SuccessURL),
 		CancelURL:  stripe.String(p.config.CancelURL),
+		Metadata:   metadata,
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
 				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
