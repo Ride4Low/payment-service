@@ -9,6 +9,7 @@ import (
 
 	"github.com/ride4Low/contracts/env"
 	"github.com/ride4Low/contracts/events"
+	"github.com/ride4Low/contracts/pkg/otel"
 	"github.com/ride4Low/contracts/pkg/rabbitmq"
 	"github.com/ride4Low/payment-service/internal/application"
 	"github.com/ride4Low/payment-service/internal/infrastructure/messaging"
@@ -21,6 +22,7 @@ var (
 	stripeSecretKey  = env.GetString("STRIPE_SECRET_KEY", "")
 	stripeSuccessURL = env.GetString("STRIPE_SUCCESS_URL", "")
 	stripeCancelURL  = env.GetString("STRIPE_CANCEL_URL", "")
+	jaegerEndpoint   = env.GetString("JAEGER_ENDPOINT", "jaeger:4317")
 )
 
 func main() {
@@ -34,6 +36,19 @@ func main() {
 		signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 		<-sigCh
 		cancel()
+	}()
+
+	otelCfg := otel.DefaultConfig("payment-service")
+	otelCfg.JaegerEndpoint = jaegerEndpoint
+
+	otelProvider, err := otel.Setup(ctx, otelCfg)
+	if err != nil {
+		log.Fatalf("failed to setup otel: %v", err)
+	}
+	defer func() {
+		if err := otelProvider.Shutdown(context.Background()); err != nil {
+			log.Printf("failed to shutdown otel: %v", err)
+		}
 	}()
 
 	rmq, err := rabbitmq.NewRabbitMQ(rabbitMQURI)
