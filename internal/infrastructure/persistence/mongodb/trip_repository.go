@@ -6,6 +6,7 @@ import (
 
 	"github.com/ride4Low/contracts/types"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -22,8 +23,12 @@ func NewTripRepository(db *mongo.Database) *TripRepository {
 }
 
 func (r *TripRepository) GetTripByID(ctx context.Context, tripID string) (*types.Trip, error) {
+	_id, err := primitive.ObjectIDFromHex(tripID)
+	if err != nil {
+		return nil, err
+	}
 	var trip types.Trip
-	err := r.collection.FindOne(ctx, bson.M{"_id": tripID}).Decode(&trip)
+	err = r.collection.FindOne(ctx, bson.M{"_id": _id}).Decode(&trip)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, fmt.Errorf("trip not found: %s", tripID)
