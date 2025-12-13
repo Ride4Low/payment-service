@@ -41,19 +41,16 @@ func (h *EventHandler) Handle(ctx context.Context, msg amqp091.Delivery) error {
 }
 
 func (h *EventHandler) handleCreateSession(ctx context.Context, message events.AmqpMessage) error {
-	var payload events.PaymentTripResponseData
+	var payload events.PaymentSelectCardData
 	if err := sonic.Unmarshal(message.Data, &payload); err != nil {
 		return fmt.Errorf("failed to unmarshal payload: %v", err)
 	}
 
 	// Call application layer - publishing is handled there
-	err := h.paymentSvc.CreatePaymentSession(
+	err := h.paymentSvc.CreatePaymentSessionWithCard(
 		ctx,
 		payload.TripID,
 		payload.UserID,
-		payload.DriverID,
-		int64(payload.Amount),
-		payload.Currency,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create payment session: %w", err)

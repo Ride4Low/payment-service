@@ -12,6 +12,7 @@ type TripRepository = domain.TripRepository
 // PaymentService is the application service port (use cases)
 type PaymentService interface {
 	CreatePaymentSession(ctx context.Context, tripID, userID, driverID string, amount int64, currency string) error
+	CreatePaymentSessionWithCard(ctx context.Context, tripID, userID string) error
 }
 
 // PaymentProvider is the port interface for payment providers (Stripe, PayPal, etc.)

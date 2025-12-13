@@ -23,6 +23,14 @@ func (m *mockPaymentService) CreatePaymentSession(ctx context.Context, tripID, u
 	return nil
 }
 
+func (m *mockPaymentService) CreatePaymentSessionWithCard(ctx context.Context, tripID, userID string) error {
+	m.called = true
+	if m.err != nil {
+		return m.err
+	}
+	return nil
+}
+
 func TestNewEventHandler(t *testing.T) {
 	mockSvc := &mockPaymentService{}
 	handler := NewEventHandler(mockSvc)

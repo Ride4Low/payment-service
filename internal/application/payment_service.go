@@ -2,6 +2,8 @@ package application
 
 import (
 	"context"
+	"fmt"
+	"log"
 
 	"github.com/ride4Low/contracts/events"
 )
@@ -51,4 +53,18 @@ func (s *paymentService) CreatePaymentSession(ctx context.Context, tripID, userI
 	}
 
 	return nil
+}
+
+func (s *paymentService) CreatePaymentSessionWithCard(ctx context.Context, tripID, userID string) error {
+	trip, err := s.repository.GetTripByID(ctx, tripID)
+	if err != nil {
+		return err
+	}
+
+	if trip.UserID != userID {
+		log.Println("invalid userID")
+		return fmt.Errorf("invalid userID")
+	}
+
+	return s.CreatePaymentSession(ctx, tripID, userID, trip.Driver.Id, int64(trip.RideFare.TotalPriceInCents), "USD")
 }
