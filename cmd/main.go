@@ -14,6 +14,7 @@ import (
 	"github.com/ride4Low/payment-service/internal/application"
 	"github.com/ride4Low/payment-service/internal/infrastructure/messaging"
 	"github.com/ride4Low/payment-service/internal/infrastructure/payment/stripe"
+	"github.com/ride4Low/payment-service/internal/infrastructure/persistence/mongodb"
 	"github.com/ride4Low/payment-service/internal/interface/consumer"
 )
 
@@ -51,6 +52,22 @@ func main() {
 		}
 	}()
 
+	// Infrastructure layer: Setup MongoDB client
+	mongoCfg := mongodb.NewMongoDefaultConfig()
+	mongoClient, err := mongodb.NewMongoClient(mongoCfg)
+	if err != nil {
+		log.Fatalf("failed to connect to MongoDB: %v", err)
+	}
+	defer func() {
+		if err := mongoClient.Disconnect(context.Background()); err != nil {
+			log.Printf("failed to disconnect MongoDB: %v", err)
+		}
+	}()
+
+	// Infrastructure layer: Create MongoDB payment repository (adapter)
+	mongoDB := mongodb.GetDatabase(mongoClient, mongoCfg.Database)
+	paymentRepo := mongodb.NewTripRepository(mongoDB)
+
 	rmq, err := rabbitmq.NewRabbitMQ(rabbitMQURI)
 	if err != nil {
 		log.Fatal("failed to connect to RabbitMQ: ", err)
@@ -68,8 +85,8 @@ func main() {
 	rmqPublisher := rabbitmq.NewPublisher(rmq)
 	eventPublisher := messaging.NewRabbitMQPublisher(rmqPublisher)
 
-	// Application layer: Create payment service with provider and publisher
-	paymentSvc := application.NewPaymentService(stripeProvider, eventPublisher)
+	// Application layer: Create payment service with provider, publisher, and repository
+	paymentSvc := application.NewPaymentService(stripeProvider, eventPublisher, paymentRepo)
 
 	// Interface layer: Create event handler with payment service
 	eventHandler := consumer.NewEventHandler(paymentSvc)

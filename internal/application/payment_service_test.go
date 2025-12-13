@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"testing"
+
+	"github.com/ride4Low/contracts/types"
 )
 
 // mockPaymentProvider is a mock implementation of PaymentProvider for testing
@@ -32,10 +34,22 @@ func (m *mockEventPublisher) PublishPaymentSessionCreated(ctx context.Context, e
 	return m.err
 }
 
+type mockTripRepository struct {
+	getByIDCalled bool
+	getByIDErr    error
+	trip          *types.Trip
+}
+
+func (m *mockTripRepository) GetTripByID(ctx context.Context, id string) (*types.Trip, error) {
+	m.getByIDCalled = true
+	return m.trip, m.getByIDErr
+}
+
 func TestNewPaymentService(t *testing.T) {
 	provider := &mockPaymentProvider{}
 	publisher := &mockEventPublisher{}
-	svc := NewPaymentService(provider, publisher)
+	tripRepository := &mockTripRepository{}
+	svc := NewPaymentService(provider, publisher, tripRepository)
 
 	if svc == nil {
 		t.Fatal("expected non-nil PaymentService")
@@ -45,7 +59,8 @@ func TestNewPaymentService(t *testing.T) {
 func TestPaymentService_CreatePaymentSession_Success(t *testing.T) {
 	provider := &mockPaymentProvider{sessionID: "cs_test_session_123"}
 	publisher := &mockEventPublisher{}
-	svc := NewPaymentService(provider, publisher)
+	tripRepository := &mockTripRepository{}
+	svc := NewPaymentService(provider, publisher, tripRepository)
 
 	ctx := context.Background()
 	err := svc.CreatePaymentSession(ctx, "trip-1", "user-1", "driver-1", 1000, "usd")
@@ -64,7 +79,8 @@ func TestPaymentService_CreatePaymentSession_ProviderError(t *testing.T) {
 	providerErr := errors.New("stripe api error")
 	provider := &mockPaymentProvider{err: providerErr}
 	publisher := &mockEventPublisher{}
-	svc := NewPaymentService(provider, publisher)
+	tripRepository := &mockTripRepository{}
+	svc := NewPaymentService(provider, publisher, tripRepository)
 
 	ctx := context.Background()
 	err := svc.CreatePaymentSession(ctx, "trip-1", "user-1", "driver-1", 1000, "usd")
@@ -82,7 +98,9 @@ func TestPaymentService_CreatePaymentSession_PublisherError(t *testing.T) {
 	publisherErr := errors.New("rabbitmq error")
 	provider := &mockPaymentProvider{sessionID: "cs_test_session_123"}
 	publisher := &mockEventPublisher{err: publisherErr}
-	svc := NewPaymentService(provider, publisher)
+	tripRepository := &mockTripRepository{}
+
+	svc := NewPaymentService(provider, publisher, tripRepository)
 
 	ctx := context.Background()
 	err := svc.CreatePaymentSession(ctx, "trip-1", "user-1", "driver-1", 1000, "usd")
@@ -96,7 +114,9 @@ func TestPaymentService_CreatePaymentSession_PublisherError(t *testing.T) {
 func TestPaymentService_CreatePaymentSession_EventData(t *testing.T) {
 	provider := &mockPaymentProvider{sessionID: "cs_test_session_456"}
 	publisher := &mockEventPublisher{}
-	svc := NewPaymentService(provider, publisher)
+	tripRepository := &mockTripRepository{}
+
+	svc := NewPaymentService(provider, publisher, tripRepository)
 
 	ctx := context.Background()
 	err := svc.CreatePaymentSession(ctx, "trip-123", "user-456", "driver-789", 2500, "eur")

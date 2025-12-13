@@ -2,7 +2,12 @@ package application
 
 import (
 	"context"
+
+	"github.com/ride4Low/payment-service/internal/domain"
 )
+
+// TripRepository is re-exported from domain for dependency injection convenience
+type TripRepository = domain.TripRepository
 
 // PaymentService is the application service port (use cases)
 type PaymentService interface {

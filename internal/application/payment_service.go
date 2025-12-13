@@ -8,13 +8,18 @@ import (
 
 // paymentService implements PaymentService interface
 type paymentService struct {
-	provider  PaymentProvider
-	publisher EventPublisher
+	provider   PaymentProvider
+	publisher  EventPublisher
+	repository TripRepository
 }
 
-// NewPaymentService creates a new payment service with the given provider and publisher
-func NewPaymentService(provider PaymentProvider, publisher EventPublisher) PaymentService {
-	return &paymentService{provider: provider, publisher: publisher}
+// NewPaymentService creates a new payment service with the given provider, publisher, and repository
+func NewPaymentService(provider PaymentProvider, publisher EventPublisher, repository TripRepository) PaymentService {
+	return &paymentService{
+		provider:   provider,
+		publisher:  publisher,
+		repository: repository,
+	}
 }
 
 // CreatePaymentSession creates a payment session using the payment provider
